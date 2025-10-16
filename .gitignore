@@ -45,14 +45,14 @@ next-env.d.ts
 # section
 
 categories
-products
-Header.tsx
+
+
 CategoryCard.tsx
-LoadingSkeleton.tsx 
-ModalConfirm.tsx 
-ProductCard.tsx 
-Pagination.tsx
-SearchInput.tsx 
+
+
+
+
+
 ThemeProvider.tsx
 ThemeSwitch.tsx 
 alert-dialog.tsx 
