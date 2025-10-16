@@ -50,11 +50,3 @@ categories
 CategoryCard.tsx
 
 
-
-
-
-ThemeProvider.tsx
-ThemeSwitch.tsx 
-alert-dialog.tsx 
-badge.tsx 
-select.tsx
