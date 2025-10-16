@@ -24,7 +24,7 @@ export const Header = () => {
   return (
     <header
       className="border-b backdrop-blur sticky top-0 z-50 shadow-sm transition-colors"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-6">
@@ -32,8 +32,8 @@ export const Header = () => {
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all hover:scale-105"
             onClick={() => router.push('/products')}
           >
-            <Package className="h-6 w-6" style={{ color: 'var(--color-accent)' }} />
-            <h1 className="text-xl font-bold" style={{ color: 'var(--color-foreground)' }}>
+            <Package className="h-6 w-6" />
+            <h1 className="text-xl font-bold" >
               BiTechX
             </h1>
           </div>
@@ -45,7 +45,7 @@ export const Header = () => {
               onClick={() => router.push('/products')}
               className="transition-all"
             >
-              <Package className="h-4 w-4" style={{ color: 'var(--color-foreground)' }} />
+              <Package className="h-4 w-4"  />
               Products
             </Button>
             <Button
@@ -54,7 +54,7 @@ export const Header = () => {
               onClick={() => router.push('/categories')}
               className="transition-all"
             >
-              <FolderOpen className="h-4 w-4" style={{ color: 'var(--color-foreground)' }} />
+              <FolderOpen className="h-4 w-4" />
               Categories
             </Button>
           </nav>
@@ -62,13 +62,13 @@ export const Header = () => {
 
         <div className="flex items-center gap-2">
           {userEmail && (
-            <span className="text-sm hidden lg:block" style={{ color: 'var(--color-muted-foreground)' }}>
+            <span className="text-sm hidden lg:block">
               {userEmail}
             </span>
           )}
           <ThemeSwitch />
           <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" style={{ color: 'var(--color-foreground)' }} />
+            <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Logout</span>
           </Button>
         </div>

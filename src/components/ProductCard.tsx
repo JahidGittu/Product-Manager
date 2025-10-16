@@ -17,12 +17,10 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
   return (
     <div
       className="rounded-2xl p-6 shadow-md hover:shadow-lg transition-all border group hover:scale-[1.02] animate-fade-in"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
       {product.image && (
         <div
           className="mb-4 rounded-lg overflow-hidden h-48 flex items-center justify-center"
-          style={{ backgroundColor: 'var(--color-muted)' }}
         >
           <img
             src={product.image}
@@ -33,25 +31,21 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
       )}
 
       <div className="mb-2 flex items-start justify-between">
-        <h3 className="text-lg font-semibold" style={{ color: 'var(--color-foreground)' }}>
+        <h3 className="text-lg font-semibold" >
           {product.name}
         </h3>
         <Badge
           variant="secondary"
-          style={{
-            backgroundColor: 'var(--color-secondary)',
-            color: 'var(--color-secondary-foreground)'
-          }}
         >
           {product.category}
         </Badge>
       </div>
 
-      <p className="text-2xl font-bold mb-3" style={{ color: 'var(--color-accent)' }}>
+      <p className="text-2xl font-bold mb-3">
         ${product.price.toFixed(2)}
       </p>
 
-      <p className="text-sm line-clamp-2 mb-4" style={{ color: 'var(--color-muted-foreground)' }}>
+      <p className="text-sm line-clamp-2 mb-4">
         {product.description}
       </p>
 

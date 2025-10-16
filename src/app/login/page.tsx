@@ -52,33 +52,27 @@ const LoginPage = () => {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 transition-colors"
-      style={{ backgroundColor: 'var(--color-background)' }}
     >
       <div className="w-full max-w-md animate-scale-in">
         <div
           className="rounded-2xl shadow-lg p-8 border"
-          style={{
-            backgroundColor: 'var(--color-card)',
-            borderColor: 'var(--color-border)',
-          }}
         >
           <div className="flex items-center justify-center gap-2 mb-8">
-            <Package className="h-8 w-8" style={{ color: 'var(--color-accent)' }} />
-            <h1 style={{ color: 'var(--color-foreground)' }} className="text-2xl font-bold">
+            <Package className="h-8 w-8" />
+            <h1 className="text-2xl font-bold">
               BiTechX Products
             </h1>
           </div>
 
           <h2
             className="text-xl font-semibold mb-6 text-center"
-            style={{ color: 'var(--color-foreground)' }}
           >
             Sign in to continue
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email" style={{ color: 'var(--color-foreground)' }}>
+              <Label htmlFor="email">
                 Email Address
               </Label>
               <Input
@@ -89,11 +83,6 @@ const LoginPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 className="mt-1"
-                style={{
-                  backgroundColor: 'var(--color-input)',
-                  color: 'var(--color-foreground)',
-                  borderColor: 'var(--color-border)',
-                }}
               />
             </div>
 
@@ -102,10 +91,6 @@ const LoginPage = () => {
               variant="default"
               className="w-full"
               disabled={loading}
-              style={{
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-primary-foreground)',
-              }}
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
@@ -113,7 +98,6 @@ const LoginPage = () => {
 
           <p
             className="text-xs text-center mt-6"
-            style={{ color: 'var(--color-muted-foreground)' }}
           >
             Enter your email to access the product management system
           </p>
