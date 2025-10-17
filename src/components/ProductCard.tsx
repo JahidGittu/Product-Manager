@@ -13,17 +13,14 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
   const router = useRouter();
+  const previewImage = product.images?.[0]; // নতুন API অনুযায়ী প্রথম image দেখাবে
 
   return (
-    <div
-      className="rounded-2xl p-6 shadow-md hover:shadow-lg transition-all border group hover:scale-[1.02] animate-fade-in"
-    >
-      {product.image && (
-        <div
-          className="mb-4 rounded-lg overflow-hidden h-48 flex items-center justify-center"
-        >
+    <div className="rounded-2xl p-6 shadow-md hover:shadow-lg transition-all border group hover:scale-[1.02] animate-fade-in">
+      {previewImage && (
+        <div className="mb-4 rounded-lg overflow-hidden h-48 flex items-center justify-center">
           <img
-            src={product.image}
+            src={previewImage}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
           />
@@ -31,23 +28,15 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
       )}
 
       <div className="mb-2 flex items-start justify-between">
-        <h3 className="text-lg font-semibold" >
-          {product.name}
-        </h3>
-        <Badge
-          variant="secondary"
-        >
-          {product.category}
-        </Badge>
+        <h3 className="text-lg font-semibold">{product.name}</h3>
+        {product.category?.name && (
+          <Badge variant="secondary">{product.category.name}</Badge>
+        )}
       </div>
 
-      <p className="text-2xl font-bold mb-3">
-        ${product.price.toFixed(2)}
-      </p>
+      <p className="text-2xl font-bold mb-3">${product.price.toFixed(2)}</p>
 
-      <p className="text-sm line-clamp-2 mb-4">
-        {product.description}
-      </p>
+      <p className="text-sm line-clamp-2 mb-4">{product.description}</p>
 
       <div className="flex gap-2">
         <Button
@@ -59,6 +48,7 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
           <Eye className="h-4 w-4" />
           View
         </Button>
+
         <Button
           variant="destructive"
           size="sm"
@@ -68,6 +58,7 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
           <Edit className="h-4 w-4" />
           Edit
         </Button>
+
         <Button
           variant="default"
           size="sm"

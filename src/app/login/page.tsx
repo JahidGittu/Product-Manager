@@ -40,7 +40,7 @@ const LoginPage = () => {
     try {
       const response = await loginUser(email);
       dispatch(loginSuccess({ token: response.token, email }));
-      toast.success('Login successful!');
+      toast('🦄 Login successful!');
       router.push('/products');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Login failed. Please try again.');
@@ -51,12 +51,11 @@ const LoginPage = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 transition-colors"
+      className="min-h-screen bg-primary-light/20 flex items-center justify-center p-4 transition-colors"
     >
       <div className="w-full max-w-md animate-scale-in">
         <div
-          className="rounded-2xl shadow-lg p-8 border"
-        >
+          className="rounded-2xl shadow-lg p-8 border bg-accent-glow/40">
           <div className="flex items-center justify-center gap-2 mb-8">
             <Package className="h-8 w-8" />
             <h1 className="text-2xl font-bold">

@@ -4,95 +4,214 @@
 @import 'tailwindcss';
 
 /* ===============================
+   Dark Mode Custom Variant
+   =============================== */
+@custom-variant dark (&:is(.dark *));
+
+/* ===============================
+   Inline Theme Variables
+   =============================== */
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+
+  --color-card: var(--card);
+  --color-card-secondary: var(--card-secondary);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-glow: var(--accent-glow);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+}
+
+/* ===============================
    Global Variables
    =============================== */
 :root {
   --radius: 0.625rem;
 
-  /* Primary Palette */
-  --bg: #EFF1F3;
-  --fg: #0D1821;
-  --primary: #4E6E5D;
-  --secondary: #AD8A64;
-  --destructive: #A44A3F;
-  --muted: #F7F7F7;
-  --muted-fg: #808080;
+  /* Light Theme */
+  --background: #EFF1F3;
+  --background-secondary: #F7F7F7;
+  --background-tertiary: #FFFFFF;
+  --foreground: #0D1821;
+  --foreground-secondary: #808080;
+  --foreground-muted: #C8C8C8;
+
   --card: #FFFFFF;
-  --card-fg: var(--fg);
-  --popover: #FFFFFF;
-  --popover-fg: var(--fg);
-  --border: #EBEBEB;
-  --input: #EBEBEB;
-  --ring: var(--primary);
+  --card-secondary: #F7F7F7;
+  --card-foreground: #0D1821;
+
+  --primary: #4E6E5D;
+  --primary-dark: #3D5648;
+  --primary-light: #6A8A77;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #AD8A64;
+  --secondary-foreground: #FFFFFF;
+
+  --accent: #4E6E5D;
+  --accent-foreground: #FFFFFF;
+  --accent-glow: rgba(78, 110, 93, 0.3);
+
+  --destructive: #A44A3F;
+  --destructive-foreground: #FFFFFF;
   --success: #00CC66;
   --warning: #FFD966;
+
+  --border: #EBEBEB;
+  --border-light: #F0F0F0;
+  --input: #EBEBEB;
+  --ring: #4E6E5D;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #0D1821;
+  --muted: #F7F7F7;
+  --muted-foreground: #808080;
+
+  /* Sidebar */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0D1821;
+  --sidebar-primary: #4E6E5D;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #4E6E5D;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #EBEBEB;
+  --sidebar-ring: #4E6E5D;
+
+  /* Charts */
+  --chart-1: #4E6E5D;
+  --chart-2: #AD8A64;
+  --chart-3: #A44A3F;
+  --chart-4: #FFD966;
+  --chart-5: #00CC66;
 }
 
-/* Dark Mode */
+/* ===============================
+   Dark Theme Variables
+   =============================== */
 .dark {
-  --bg: #0D1821;
-  --fg: #EFF1F3;
-  --primary: #4E6E5D;
-  --secondary: #AD8A64;
-  --destructive: #A44A3F;
-  --muted: #1A2530;
-  --muted-fg: #C8C8C8;
+  --background: #0D1821;
+  --background-secondary: #1A2530;
+  --background-tertiary: #191B1E;
+  --foreground: #EFF1F3;
+  --foreground-secondary: #C8C8C8;
+  --foreground-muted: #808080;
+
   --card: #191B1E;
-  --card-fg: var(--fg);
-  --popover: #191B1E;
-  --popover-fg: var(--fg);
-  --border: #32343A;
-  --input: #26282D;
-  --ring: var(--primary);
+  --card-secondary: #1A2530;
+  --card-foreground: #EFF1F3;
+
+  --primary: #4E6E5D;
+  --primary-dark: #3D5648;
+  --primary-light: #6A8A77;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #AD8A64;
+  --secondary-foreground: #FFFFFF;
+
+  --accent: #4E6E5D;
+  --accent-foreground: #FFFFFF;
+  --accent-glow: rgba(78, 110, 93, 0.3);
+
+  --destructive: #A44A3F;
+  --destructive-foreground: #FFFFFF;
   --success: #00CC66;
   --warning: #FFD966;
+
+  --border: #32343A;
+  --border-light: #26282D;
+  --input: #26282D;
+  --ring: #4E6E5D;
+
+  --popover: #191B1E;
+  --popover-foreground: #EFF1F3;
+  --muted: #1A2530;
+  --muted-foreground: #C8C8C8;
+
+  /* Sidebar */
+  --sidebar: #191B1E;
+  --sidebar-foreground: #EFF1F3;
+  --sidebar-primary: #4E6E5D;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #4E6E5D;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #32343A;
+  --sidebar-ring: #4E6E5D;
+
+  /* Charts */
+  --chart-1: #4E6E5D;
+  --chart-2: #AD8A64;
+  --chart-3: #A44A3F;
+  --chart-4: #FFD966;
+  --chart-5: #00CC66;
 }
 
 /* ===============================
    Base Styles
    =============================== */
-* {
-  box-sizing: border-box;
-  border-color: var(--border);
-  outline-color: var(--ring);
-}
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 
-body {
-  background-color: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 /* ===============================
-   Utility Classes for Tailwind
+   Extra Styles
    =============================== */
-.bg-primary { background-color: var(--primary); }
-.text-primary { color: var(--primary); }
-.bg-secondary { background-color: var(--secondary); }
-.text-secondary { color: var(--secondary); }
-.bg-destructive { background-color: var(--destructive); }
-.text-destructive { color: var(--destructive); }
-.bg-card { background-color: var(--card); }
-.text-card { color: var(--card-fg); }
-.bg-popover { background-color: var(--popover); }
-.text-popover { color: var(--popover-fg); }
-.bg-muted { background-color: var(--muted); }
-.text-muted { color: var(--muted-fg); }
-.border-input { border-color: var(--input); }
-.focus-ring { outline-color: var(--ring); }
-
 .activemenu {
   color: var(--primary);
   font-size: 16px;
   font-weight: 600;
 }
-
-/* Hover Effects using Tailwind style custom classes */
-.hover-bg-primary:hover { background-color: var(--primary); }
-.hover-bg-secondary:hover { background-color: var(--secondary); }
-.hover-bg-destructive:hover { background-color: var(--destructive); }
-
-/* Rounded & shadow utilities */
-.rounded-lg { border-radius: var(--radius); }
-.shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.shadow-md { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }

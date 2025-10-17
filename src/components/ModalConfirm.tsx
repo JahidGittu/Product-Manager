@@ -39,7 +39,7 @@ export const ModalConfirm = ({
           <AlertDialogCancel>{cancelText}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-danger text-danger-foreground hover:bg-danger/90"
+            className="bg-destructive text-secondary-foreground hover:bg-danger/90"
           >
             {confirmText}
           </AlertDialogAction>
