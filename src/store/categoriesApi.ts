@@ -1,3 +1,4 @@
+// src/store/categoriesApi.ts
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { RootState } from './route';
 
@@ -9,6 +10,7 @@ export interface Category {
   description?: string | null;
   image?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export const categoriesApi = createApi({
@@ -26,7 +28,8 @@ export const categoriesApi = createApi({
   endpoints: (builder) => ({
     getAllCategories: builder.query<Category[], void>({
       query: () => '/categories',
-      providesTags: ['Category'],
+      providesTags: (result) =>
+        result ? [...result.map(({ id }) => ({ type: 'Category' as const, id }))] : ['Category'],
     }),
   }),
 });

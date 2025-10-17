@@ -1,3 +1,5 @@
+// src/app/products/page.tsx
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -33,6 +35,8 @@ const Products = () => {
   const allProducts: Product[] = productsData?.data || [];
   const { data: categoriesData } = useGetAllCategoriesQuery();
   const categories: Category[] = categoriesData || [];
+
+  console.log('products page data all products' , productsData)
 
   // Sync categoryFilter with URL query param
   useEffect(() => {

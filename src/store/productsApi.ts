@@ -1,3 +1,4 @@
+// src/store/productsApi.ts
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { RootState } from './route';
 
@@ -24,6 +25,23 @@ export interface Product {
   category: Category;
 }
 
+// Request payloads
+export interface CreateProductPayload {
+  name: string;
+  description: string;
+  price: number;
+  images: string[];
+  categoryId: string;
+}
+
+export interface UpdateProductPayload {
+  name?: string;
+  description?: string;
+  price?: number;
+  images?: string[];
+  categoryId?: string;
+}
+
 export const productsApi = createApi({
   reducerPath: 'productsApi',
   baseQuery: fetchBaseQuery({
@@ -37,7 +55,7 @@ export const productsApi = createApi({
   }),
   tagTypes: ['Product'],
   endpoints: (builder) => ({
-    // Server-side paginated products
+    // Get all products with optional filters
     getProducts: builder.query<
       { data: Product[]; total: number },
       { offset?: number; limit?: number; categoryId?: string; searchedText?: string }
@@ -55,21 +73,22 @@ export const productsApi = createApi({
       },
       providesTags: (result) =>
         result
-          ? [
-              ...result.data.map(({ id }) => ({ type: 'Product' as const, id })),
-              { type: 'Product', id: 'LIST' },
-            ]
+          ? [...result.data.map(({ id }) => ({ type: 'Product' as const, id })), { type: 'Product', id: 'LIST' }]
           : [{ type: 'Product', id: 'LIST' }],
     }),
 
-    // Single product by slug
-    getProduct: builder.query<Product, string>({
-      query: (slug) => `/products/${slug}`,
-      providesTags: (result, error, slug) => [{ type: 'Product', id: slug }],
+    // Get single product by id or slug
+    getProduct: builder.query<Product, { id?: string; slug?: string }>({
+      query: ({ id, slug }) => {
+        if (slug) return `/products/${slug}`;
+        if (id) return `/products/${id}`;
+        throw new Error('Must provide id or slug');
+      },
+      providesTags: (result, error, { id, slug }) => [{ type: 'Product', id: id || slug || 'UNKNOWN' }],
     }),
 
     // Create a new product
-    createProduct: builder.mutation<Product, Partial<Product> & { categoryId: string }>({
+    createProduct: builder.mutation<Product, CreateProductPayload>({
       query: (body) => ({
         url: '/products',
         method: 'POST',
@@ -79,10 +98,7 @@ export const productsApi = createApi({
     }),
 
     // Update an existing product
-    updateProduct: builder.mutation<
-      Product,
-      { id: string; data: Partial<Product> & { categoryId?: string } }
-    >({
+    updateProduct: builder.mutation<Product, { id: string; data: UpdateProductPayload }>({
       query: ({ id, data }) => ({
         url: `/products/${id}`,
         method: 'PUT',

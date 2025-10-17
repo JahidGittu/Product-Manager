@@ -1,33 +1,59 @@
+// src/components/ProductForm.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useGetAllCategoriesQuery } from '@/store/categoriesApi';
-import { useCreateProductMutation, useGetProductQuery, useUpdateProductMutation, Product } from '@/store/productsApi';
 import { toast } from 'react-toastify';
+import { useGetAllCategoriesQuery } from '@/store/categoriesApi';
+import { useCreateProductMutation, useUpdateProductMutation, useGetProductQuery } from '@/store/productsApi';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from './ui/card';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from './ui/select';
+import { Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface ProductFormProps {
-  productId?: string;
+  productId?: string;  
+  productSlug?: string; 
 }
 
-export default function ProductForm({ productId }: ProductFormProps) {
-  const router = useRouter();
-  const isEditing = !!productId;
+interface FormData {
+  name: string;
+  description: string;
+  price: string;
+  categoryId: string;
+  imageUrl: string;
+}
 
-  const { data: categories = [] } = useGetAllCategoriesQuery();
-  const { data: productData } = useGetProductQuery(productId!, { skip: !productId });
+const ProductForm: React.FC<ProductFormProps> = ({ productId, productSlug }) => {
+  const router = useRouter();
+  const { data: categories } = useGetAllCategoriesQuery();
+  const { data: productData } = useGetProductQuery(
+    { id: productId, slug: productSlug },
+    { skip: !productId && !productSlug }
+  );
 
   const [createProduct] = useCreateProductMutation();
   const [updateProduct] = useUpdateProductMutation();
 
-  const [formData, setFormData] = useState({
+  const isEditing = !!(productId || productSlug);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
     price: '',
@@ -35,9 +61,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
     imageUrl: '',
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Prefill form in edit mode
+  // Populate form in edit mode
   useEffect(() => {
     if (productData) {
       setFormData({
@@ -45,32 +69,36 @@ export default function ProductForm({ productId }: ProductFormProps) {
         description: productData.description,
         price: productData.price.toString(),
         categoryId: productData.category?.id || '',
-        imageUrl: productData.images?.[0] || '',
+        imageUrl: productData.images[0] || '',
       });
     }
   }, [productData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { name, description, price, categoryId, imageUrl } = formData;
-    const priceNumber = parseFloat(price);
+    setIsSubmitting(true);
 
-    const payload: any = {
-      name,
-      description,
-      price: priceNumber,
-      categoryId,
-      images: imageUrl ? [imageUrl] : [],
+    if (!formData.name || !formData.description || !formData.price || !formData.categoryId) {
+      toast.error('Please fill all required fields.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price),
+      images: formData.imageUrl ? [formData.imageUrl] : [],
+      categoryId: formData.categoryId,
     };
 
     try {
-      setIsSubmitting(true);
-      if (isEditing && productId) {
-        await updateProduct({ id: productId, data: payload }).unwrap();
-        toast.success('Product updated successfully');
+      if (isEditing && productData) {
+        await updateProduct({ id: productData.id, data: payload }).unwrap();
+        toast.success('Product updated successfully!');
       } else {
         await createProduct(payload).unwrap();
-        toast.success('Product created successfully');
+        toast.success('Product created successfully!');
       }
       router.push('/products');
     } catch (err: any) {
@@ -82,11 +110,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
   return (
     <div className="container max-w-2xl mx-auto py-8 animate-slide-up">
-      <Button
-        variant="ghost"
-        className="mb-6"
-        onClick={() => router.push('/products')}
-      >
+      <Button variant="ghost" className="mb-6" onClick={() => router.push('/products')}>
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Products
       </Button>
@@ -100,7 +124,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name */}
+
             <div className="space-y-2">
               <Label htmlFor="name">Product Name *</Label>
               <Input
@@ -112,7 +136,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
               />
             </div>
 
-            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>
               <Textarea
@@ -125,7 +148,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
               />
             </div>
 
-            {/* Price & Category */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Price ($) *</Label>
@@ -151,17 +173,14 @@ export default function ProductForm({ productId }: ProductFormProps) {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
+                    {categories?.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Image URL */}
             <div className="space-y-2">
               <Label htmlFor="imageUrl">Image URL (Optional)</Label>
               <Input
@@ -171,22 +190,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                 placeholder="https://example.com/image.jpg"
               />
-              {formData.imageUrl && (
-                <div className="mt-2 rounded-lg overflow-hidden border">
-                  <img
-                    src={formData.imageUrl}
-                    alt="Preview"
-                    className="w-full h-48 object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = '';
-                      toast.error('Invalid image URL');
-                    }}
-                  />
-                </div>
-              )}
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-4 pt-4">
               <Button
                 type="submit"
@@ -195,26 +200,18 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 disabled={isSubmitting}
               >
                 {isSubmitting && <Loader2 className="animate-spin h-5 w-5" />}
-                {isSubmitting
-                  ? isEditing
-                    ? 'Updating...'
-                    : 'Creating...'
-                  : isEditing
-                  ? 'Update Product'
-                  : 'Create Product'}
+                {isSubmitting ? (isEditing ? 'Updating...' : 'Creating...') : isEditing ? 'Update Product' : 'Create Product'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/products')}
-                size="lg"
-              >
+              <Button type="button" variant="outline" onClick={() => router.push('/products')} size="lg">
                 Cancel
               </Button>
             </div>
+
           </form>
         </CardContent>
       </Card>
     </div>
   );
-}
+};
+
+export default ProductForm;

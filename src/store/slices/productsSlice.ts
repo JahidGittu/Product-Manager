@@ -1,8 +1,7 @@
 // src/store/slices/productSlice.ts
-
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface Product {
+interface ProductState {
   id: string;
   name: string;
   description: string;
@@ -13,7 +12,7 @@ interface Product {
 }
 
 interface ProductsState {
-  products: Product[];
+  products: ProductState[];
 }
 
 const initialState: ProductsState = { products: [] };
@@ -22,13 +21,13 @@ const productsSlice = createSlice({
   name: "products",
   initialState,
   reducers: {
-    setProducts: (state, action: PayloadAction<Product[]>) => {
+    setProducts: (state, action: PayloadAction<ProductState[]>) => {
       state.products = action.payload;
     },
-    addProduct: (state, action: PayloadAction<Product>) => {
+    addProduct: (state, action: PayloadAction<ProductState>) => {
       state.products.push(action.payload);
     },
-    updateProduct: (state, action: PayloadAction<Product>) => {
+    updateProduct: (state, action: PayloadAction<ProductState>) => {
       const idx = state.products.findIndex(p => p.id === action.payload.id);
       if (idx >= 0) state.products[idx] = action.payload;
     },
