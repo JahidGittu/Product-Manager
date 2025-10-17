@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useGetAllCategoriesQuery } from '@/store/categoriesApi';
 import { useCreateProductMutation, useGetProductQuery, useUpdateProductMutation, Product } from '@/store/productsApi';
 import { toast } from 'react-toastify';
@@ -34,6 +34,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
     categoryId: '',
     imageUrl: '',
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Prefill form in edit mode
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
     };
 
     try {
+      setIsSubmitting(true);
       if (isEditing && productId) {
         await updateProduct({ id: productId, data: payload }).unwrap();
         toast.success('Product updated successfully');
@@ -72,6 +75,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
       router.push('/products');
     } catch (err: any) {
       toast.error(err?.data?.message || 'Something went wrong');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -183,8 +188,20 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
             {/* Buttons */}
             <div className="flex gap-4 pt-4">
-              <Button type="submit" className="flex-1" size="lg">
-                {isEditing ? 'Update Product' : 'Create Product'}
+              <Button
+                type="submit"
+                className="flex-1 flex items-center justify-center gap-2"
+                size="lg"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="animate-spin h-5 w-5" />}
+                {isSubmitting
+                  ? isEditing
+                    ? 'Updating...'
+                    : 'Creating...'
+                  : isEditing
+                  ? 'Update Product'
+                  : 'Create Product'}
               </Button>
               <Button
                 type="button"

@@ -98,7 +98,7 @@
   --secondary-foreground: #FFFFFF;
 
   --accent: #4E6E5D;
-  --accent-foreground: #FFFFFF;
+  --accent-foreground: #b4b2b2;
   --accent-glow: rgba(78, 110, 93, 0.3);
 
   --destructive: #A44A3F;
@@ -145,7 +145,7 @@
   --foreground-secondary: #C8C8C8;
   --foreground-muted: #808080;
 
-  --card: #191B1E;
+  --card: #1d2930;
   --card-secondary: #1A2530;
   --card-foreground: #EFF1F3;
 

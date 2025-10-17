@@ -3,25 +3,26 @@ import { RootState } from './route';
 
 const API_BASE_URL = 'https://api.bitechx.com';
 
+export interface Category {
+  id: string;
+  name: string;
+  image?: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
-  images: string[];       
+  images: string[];
   slug: string;
   createdAt?: string;
   updatedAt?: string;
-  category: {
-    id: string;
-    name: string;
-    image?: string;
-    createdAt?: string;
-    updatedAt?: string;
-    description?: string | null;
-  };
+  category: Category;
 }
-
 
 export const productsApi = createApi({
   reducerPath: 'productsApi',
@@ -36,37 +37,70 @@ export const productsApi = createApi({
   }),
   tagTypes: ['Product'],
   endpoints: (builder) => ({
-    getProducts: builder.query<Product[], { offset?: number; limit?: number; categoryId?: string }>({
-      query: ({ offset = 0, limit = 12, categoryId }) => {
+    // Server-side paginated products
+    getProducts: builder.query<
+      { data: Product[]; total: number },
+      { offset?: number; limit?: number; categoryId?: string; searchedText?: string }
+    >({
+      query: ({ offset = 0, limit = 12, categoryId, searchedText }) => {
         let url = `/products?offset=${offset}&limit=${limit}`;
         if (categoryId) url += `&categoryId=${categoryId}`;
+        if (searchedText) url += `&searchedText=${encodeURIComponent(searchedText)}`;
         return url;
       },
-      providesTags: ['Product'],
+      transformResponse: (response: Product[], meta) => {
+        const totalHeader = meta?.response?.headers.get('X-Total-Count');
+        const total = totalHeader ? parseInt(totalHeader) : response.length;
+        return { data: response, total };
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.map(({ id }) => ({ type: 'Product' as const, id })),
+              { type: 'Product', id: 'LIST' },
+            ]
+          : [{ type: 'Product', id: 'LIST' }],
     }),
-    searchProducts: builder.query<Product[], { searchedText: string }>({
-      query: ({ searchedText }) => `/products/search?searchedText=${searchedText}`,
-      providesTags: ['Product'],
-    }),
+
+    // Single product by slug
     getProduct: builder.query<Product, string>({
       query: (slug) => `/products/${slug}`,
-      providesTags: (result, error, id) => [{ type: 'Product', id }],
+      providesTags: (result, error, slug) => [{ type: 'Product', id: slug }],
     }),
+
+    // Create a new product
     createProduct: builder.mutation<Product, Partial<Product> & { categoryId: string }>({
-      query: (body) => ({ url: '/products', method: 'POST', body }),
-      invalidatesTags: ['Product'],
+      query: (body) => ({
+        url: '/products',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Product', id: 'LIST' }],
     }),
-    updateProduct: builder.mutation<Product, { id: string; data: Partial<Product> & { categoryId?: string } }>({
-      query: ({ id, data }) => ({ url: `/products/${id}`, method: 'PUT', body: data }),
-      invalidatesTags: ['Product'],
+
+    // Update an existing product
+    updateProduct: builder.mutation<
+      Product,
+      { id: string; data: Partial<Product> & { categoryId?: string } }
+    >({
+      query: ({ id, data }) => ({
+        url: `/products/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Product', id }],
     }),
-    deleteProduct: builder.mutation<void, string>({
-      query: (id) => ({ url: `/products/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['Product'],
+
+    // Delete a product
+    deleteProduct: builder.mutation<{ id: string }, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'Product', id: 'LIST' }],
     }),
   }),
 });
-
 
 export const {
   useGetProductsQuery,

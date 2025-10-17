@@ -51,11 +51,11 @@ const LoginPage = () => {
 
   return (
     <div
-      className="min-h-screen bg-primary-light/20 flex items-center justify-center p-4 transition-colors"
+      className="min-h-screen bg-primary-light/30 flex items-center justify-center p-4 transition-colors"
     >
       <div className="w-full max-w-md animate-scale-in">
         <div
-          className="rounded-2xl shadow-lg p-8 border bg-accent-glow/40">
+          className="rounded-2xl shadow-lg p-8 border bg-accent-glow/80">
           <div className="flex items-center justify-center gap-2 mb-8">
             <Package className="h-8 w-8" />
             <h1 className="text-2xl font-bold">
