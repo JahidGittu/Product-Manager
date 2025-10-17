@@ -16,28 +16,33 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
   const previewImage = product.images?.[0];
 
   return (
-    <div className="rounded-2xl p-6 shadow-md hover:shadow-lg transition-all border group hover:scale-[1.02] animate-fade-in bg-card flex flex-col h-full overflow-hidden">
+    <div className="rounded-2xl p-6 shadow-md hover:shadow-lg transition-all border group hover:scale-[1.02] animate-fade-in bg-card flex flex-col h-full overflow-hidden relative">
+
+      {/* Image with Badge */}
+      {previewImage && (
+        <div className="mb-4 rounded-lg overflow-hidden h-48 flex items-center justify-center ">
+          <img
+            src={previewImage}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          />
+
+          {/* Badge at Top-Right */}
+          {product.category?.name && (
+            <Badge
+              variant="secondary"
+              className="absolute top-2 right-2"
+            >
+              {product.category.name}
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Content wrapper */}
       <div className="flex-1 flex flex-col">
-        {/* Image */}
-        {previewImage && (
-          <div className="mb-4 rounded-lg overflow-hidden h-48 flex items-center justify-center">
-            <img
-              src={previewImage}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-            />
-          </div>
-        )}
-
-        {/* Title + Category */}
-        <div className="mb-2 flex items-start justify-between">
-          <h3 className="text-lg font-semibold">{product.name}</h3>
-          {product.category?.name && (
-            <Badge variant="secondary">{product.category.name}</Badge>
-          )}
-        </div>
+        {/* Title */}
+        <h3 className="text-lg font-semibold w-full mb-3">{product.name}</h3>
 
         {/* Price */}
         <p className="text-2xl font-bold mb-3">${product.price.toFixed(2)}</p>
