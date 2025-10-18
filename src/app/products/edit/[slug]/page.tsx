@@ -6,13 +6,13 @@ import { useParams } from 'next/navigation';
 
 export default function EditProductPage() {
   const params = useParams();
-  const productId = params.id as string;
+  const productSlug = params.slug as string;
 
-  if (!productId) return <p>Invalid product ID</p>;
+  if (!productSlug) return <p>Invalid product slug</p>;
 
   return (
     <ProtectedRoute>
-      <ProductForm productId={productId} />
+      <ProductForm productSlug={productSlug} />
     </ProtectedRoute>
   );
 }

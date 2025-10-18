@@ -1,51 +1,102 @@
-// src/app/products/page.tsx
-
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
+import { X, Menu } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { Pagination } from '@/components/Pagination';
 import { ProductCard } from '@/components/ProductCard';
-import { Slider } from '@/components/ui/slider';
-import { useGetProductsQuery, Product } from '@/store/productsApi';
-import { useGetAllCategoriesQuery, Category } from '@/store/categoriesApi';
-import { X, Menu } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 
-const defaultPageSizeOptions = [10, 15, 20, 25, 30];
+import {
+  useGetProductsQuery,
+  useDeleteProductMutation,
+  productsApi,
+  Product,
+} from '@/store/productsApi';
+import { useGetAllCategoriesQuery, Category } from '@/store/categoriesApi';
 
-const Products = () => {
+const DELETED_KEY = 'deletedProducts_v1';
+const DEFAULT_PAGE_SIZES = [10, 15, 20, 25, 30];
+
+// -------------------- 🔥 Utilities --------------------
+const getDeletedIds = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const addDeletedId = (id: string) => {
+  const ids = getDeletedIds();
+  if (!ids.includes(id)) {
+    localStorage.setItem(DELETED_KEY, JSON.stringify([...ids, id]));
+  }
+};
+
+// -------------------- 🔥 Custom Hooks --------------------
+const useProductDelete = () => {
+  const [deleteProduct] = useDeleteProductMutation();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // URL query params
-  const categoryFromQuery = searchParams.get('category') || '';
+  const handleDelete = async (product: Product) => {
+    if (!product) return;
 
-  // State
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(12);
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState(categoryFromQuery);
-  const [sortOption, setSortOption] = useState('default');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'This action will remove the product permanently!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    });
 
-  const { data: productsData, isLoading, isError } = useGetProductsQuery({ offset: 0, limit: 1000 });
-  const allProducts: Product[] = productsData?.data || [];
-  const { data: categoriesData } = useGetAllCategoriesQuery();
-  const categories: Category[] = categoriesData || [];
+    if (!result.isConfirmed) return;
 
-  console.log('products page data all products' , productsData)
+    try {
+      await deleteProduct(product.id).unwrap();
 
-  // Sync categoryFilter with URL query param
-  useEffect(() => {
-    setCategoryFilter(categoryFromQuery);
-  }, [categoryFromQuery]);
+      addDeletedId(product.id);
 
-  // Filter + Sort
-  const filteredProducts = useMemo(() => {
-    let filtered = allProducts.filter((p) => {
+      // Update RTK cache
+      productsApi.util.updateQueryData(
+        'getProducts',
+        { offset: 0, limit: 1000 },
+        (draft) => {
+          if (!draft?.data) return;
+          draft.data = draft.data.filter((p) => p.id !== product.id);
+          draft.total = draft.data.length;
+        }
+      );
+
+      toast.success('Product deleted successfully!');
+    } catch (err: any) {
+      console.error('Delete Error:', err);
+      Swal.fire('Error!', err?.data?.message || 'Failed to delete product.', 'error');
+    }
+  };
+
+  return { handleDelete };
+};
+
+const useFilteredProducts = (
+  products: Product[],
+  deletedIds: string[],
+  search: string,
+  categoryFilter: string,
+  priceRange: [number, number],
+  sortOption: string
+) => {
+  return useMemo(() => {
+    let filtered = products.filter((p) => {
+      if (deletedIds.includes(p.id)) return false;
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter ? p.category?.id === categoryFilter : true;
       const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
@@ -57,20 +108,55 @@ const Products = () => {
         filtered.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
         break;
       case 'top':
+      case 'highLow':
         filtered.sort((a, b) => b.price - a.price);
         break;
       case 'lowHigh':
         filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'highLow':
-        filtered.sort((a, b) => b.price - a.price);
         break;
       default:
         filtered.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
     }
 
     return filtered;
-  }, [allProducts, search, categoryFilter, priceRange, sortOption]);
+  }, [products, deletedIds, search, categoryFilter, priceRange, sortOption]);
+};
+
+// -------------------- 🏗️ Main Component --------------------
+const Products = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const categoryFromQuery = searchParams.get('category') || '';
+
+  // ---------- States ----------
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(12);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(categoryFromQuery);
+  const [sortOption, setSortOption] = useState('default');
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ---------- Data ----------
+  const { data: productsData, isLoading, isError } = useGetProductsQuery({ offset: 0, limit: 1000 });
+  const allProducts: Product[] = productsData?.data || [];
+
+  const { data: categoriesData } = useGetAllCategoriesQuery();
+  const categories: Category[] = categoriesData || [];
+
+  useEffect(() => setCategoryFilter(categoryFromQuery), [categoryFromQuery]);
+
+  const deletedIds = useMemo(() => getDeletedIds(), [productsData]);
+
+  const filteredProducts = useFilteredProducts(
+    allProducts,
+    deletedIds,
+    search,
+    categoryFilter,
+    priceRange,
+    sortOption
+  );
 
   const totalPages = Math.ceil(filteredProducts.length / perPage);
   const displayedProducts = useMemo(() => {
@@ -84,9 +170,11 @@ const Products = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const { handleDelete } = useProductDelete();
+
+  // ---------- JSX ----------
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
-
       {/* Top Header */}
       <div className="sticky top-15 py-10 z-30 bg-background p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <input
@@ -109,11 +197,9 @@ const Products = () => {
       </div>
 
       <div className="lg:grid lg:grid-cols-[260px_1fr] gap-6 relative">
-
         {/* Sidebar */}
         <aside className={`bg-card shadow-md p-4 z-40 transition-transform duration-300 lg:translate-x-0 lg:rounded-2xl lg:sticky lg:top-50 lg:h-fit
           ${sidebarOpen ? 'fixed h-full top-0 left-0 w-64 translate-x-0' : 'hidden lg:block'}`}>
-
           <div className="flex justify-between items-center mb-4 lg:hidden">
             <h2 className="text-xl font-semibold">Filters</h2>
             <Button variant="ghost" onClick={() => setSidebarOpen(false)}>
@@ -122,7 +208,6 @@ const Products = () => {
           </div>
 
           <div className="space-y-6 sticky top-6">
-
             {/* Search */}
             <div>
               <label className="block mb-2 font-medium">Search</label>
@@ -137,9 +222,7 @@ const Products = () => {
 
             {/* Add Product */}
             <div>
-              <Button onClick={() => router.push('/products/create')} className="w-full">
-                Add Product
-              </Button>
+              <Button onClick={() => router.push('/products/create')} className="w-full">Add Product</Button>
             </div>
 
             {/* Category */}
@@ -215,7 +298,7 @@ const Products = () => {
                 onChange={(e) => { setPerPage(+e.target.value); setPage(1); }}
                 className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {defaultPageSizeOptions.map(opt => (
+                {DEFAULT_PAGE_SIZES.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
@@ -243,7 +326,11 @@ const Products = () => {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} onDelete={() => { }} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onDelete={() => handleDelete(product)}
+                  />
                 ))}
               </div>
 

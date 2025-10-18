@@ -58,7 +58,7 @@ export const ProductCard = ({ product, onDelete }: ProductCardProps) => {
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => router.push(`/products/edit/${product.id}`)}
+          onClick={() => router.push(`/products/edit/${product.slug}`)}
           className="hover:scale-105 transition-transform flex-1"
         >
           <Edit className="h-4 w-4 mr-1" />
