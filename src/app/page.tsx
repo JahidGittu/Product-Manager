@@ -8,8 +8,8 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/login"); // Redirect to login page
+    router.replace("/products"); 
   }, [router]);
 
-  return null; // Empty because we immediately redirect
+  return null;
 }

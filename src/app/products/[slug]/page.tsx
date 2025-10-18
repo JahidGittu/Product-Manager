@@ -17,6 +17,7 @@ import {
 } from '@/store/productsApi';
 import { ProductCard } from '@/components/ProductCard';
 import ProductDetailsSkeleton from '@/components/ProductDetailsSkeleton';
+import ProtectedRoute from '@/app/routes/ProtectedRoute';
 
 const ZOOM_FACTOR = 2.6;
 const LENS_SIZE = 200;
@@ -94,12 +95,16 @@ function useProductDelete(product?: Product) {
       });
 
       router.push('/products');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Delete Error:', err);
-      Swal.fire('Error!', err?.data?.message || 'Failed to delete product.', 'error');
-    } finally {
-      setDeleting(false);
+      if (err && typeof err === 'object' && 'data' in err) {
+        const e = err as { data?: { message?: string } };
+        Swal.fire('Error!', e.data?.message || 'Failed to delete product.', 'error');
+      } else {
+        Swal.fire('Error!', 'Failed to delete product.', 'error');
+      }
     }
+
   };
 
   return { handleDelete, deleting };
@@ -132,7 +137,7 @@ export default function ProductDetailsPage() {
       const entry = likes[product.id] || { liked: false, count: 0 };
       setLiked(entry.liked);
       setLikeCount(entry.count);
-    } catch {}
+    } catch { }
   }, [product]);
 
   const toggleLike = () => {
@@ -215,131 +220,132 @@ export default function ProductDetailsPage() {
   const deletedProducts = getDeletedProducts();
 
   return (
-    <div className="min-h-screen p-4 sm:p-8">
-      <div className="max-w-6xl bg-card mx-auto rounded-3xl shadow-xl overflow-hidden md:grid md:grid-cols-2 gap-8 p-6 md:p-12">
-        {/* LEFT: Image Zoom Section */}
-        <div className="space-y-4">
-          <div
-            ref={containerRef}
-            className="relative w-full bg-muted rounded-2xl overflow-hidden"
-            style={{ minHeight: 420 }}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={() => setShowLens(true)}
-            onMouseLeave={() => setShowLens(false)}
-          >
-            <img
-              src={product.images[activeIndex]}
-              alt={product.name}
-              className="w-full h-[420px] object-cover rounded-2xl select-none"
-              draggable={false}
-            />
-            {showLens && <div style={lensStyle()} />}
-          </div>
+    <ProtectedRoute>
+      <div className="min-h-screen p-4 sm:p-8">
+        <div className="max-w-6xl bg-card mx-auto rounded-3xl shadow-xl overflow-hidden md:grid md:grid-cols-2 gap-8 p-6 md:p-12">
+          {/* LEFT: Image Zoom Section */}
+          <div className="space-y-4">
+            <div
+              ref={containerRef}
+              className="relative w-full bg-muted rounded-2xl overflow-hidden"
+              style={{ minHeight: 420 }}
+              onMouseMove={handleMouseMove}
+              onMouseEnter={() => setShowLens(true)}
+              onMouseLeave={() => setShowLens(false)}
+            >
+              <img
+                src={product.images[activeIndex]}
+                alt={product.name}
+                className="w-full h-[420px] object-cover rounded-2xl select-none"
+                draggable={false}
+              />
+              {showLens && <div style={lensStyle()} />}
+            </div>
 
-          {/* Thumbnails */}
-          <div className="flex gap-3 overflow-x-auto items-center py-2">
-            {product.images.map((src: string, idx: number) => (
-              <button
-                key={idx}
-                onClick={() => setActiveIndex(idx)}
-                className={`shrink-0 rounded-xl overflow-hidden transition-transform ${
-                  idx === activeIndex
+            {/* Thumbnails */}
+            <div className="flex gap-3 overflow-x-auto items-center py-2">
+              {product.images.map((src: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`shrink-0 rounded-xl overflow-hidden transition-transform ${idx === activeIndex
                     ? 'scale-105 ring-2 ring-primary'
                     : 'hover:scale-[1.03]'
-                }`}
-                style={{ width: 96, height: 72 }}
-              >
-                <img
-                  src={src}
-                  alt={`${product.name}-${idx}`}
-                  className="w-full h-full object-cover"
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT: Details */}
-        <div className="flex flex-col justify-between h-full">
-          <div>
-            <div className="flex justify-between items-start">
-              <h1 className="text-3xl font-bold text-accent">{product.name}</h1>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => router.push('/products')}
-              >
-                <CircleArrowOutUpLeft /> All Products
-              </Button>
-            </div>
-
-            <p className="mb-2">
-              Category:{' '}
-              <span className="font-medium">
-                {product.category?.name || 'No Category'}
-              </span>
-            </p>
-            <p className="text-2xl font-semibold mb-4">${product.price}</p>
-            <p className="mb-6 text-sm leading-relaxed">
-              {product.description || 'No description available.'}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="mt-auto flex flex-col gap-3 pt-4 border-t">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                onClick={toggleLike}
-                variant={liked ? 'destructive' : 'default'}
-                className="flex items-center gap-2"
-              >
-                <Heart size={18} /> {liked ? 'Liked' : 'Like'} ({likeCount})
-              </Button>
-
-              <Button onClick={() => router.push(`/products/edit/${product.slug}`)}>
-                Edit
-              </Button>
-
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-
-            {product.category?.id && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-                onClick={() =>
-                  router.push(`/products?category=${product.category.id}`)
-                }
-              >
-                See All in {product.category.name} <ArrowRight size={16} />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Similar Products */}
-      {similarProductsData?.data?.length ? (
-        <div className="max-w-6xl mx-auto mt-12">
-          <h2 className="text-2xl font-bold mb-6">
-            More from {product.category?.name}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {similarProductsData.data
-              .filter((p) => p.id !== product.id && !deletedProducts.includes(p.id))
-              .map((p: Product) => (
-                <ProductCard key={p.id} product={p} onDelete={() => {}} />
+                    }`}
+                  style={{ width: 96, height: 72 }}
+                >
+                  <img
+                    src={src}
+                    alt={`${product.name}-${idx}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
               ))}
+            </div>
+          </div>
+
+          {/* RIGHT: Details */}
+          <div className="flex flex-col justify-between h-full">
+            <div>
+              <div className="flex justify-between items-start">
+                <h1 className="text-3xl font-bold text-accent">{product.name}</h1>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => router.push('/products')}
+                >
+                  <CircleArrowOutUpLeft /> All Products
+                </Button>
+              </div>
+
+              <p className="mb-2">
+                Category:{' '}
+                <span className="font-medium">
+                  {product.category?.name || 'No Category'}
+                </span>
+              </p>
+              <p className="text-2xl font-semibold mb-4">${product.price}</p>
+              <p className="mb-6 text-sm leading-relaxed">
+                {product.description || 'No description available.'}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-auto flex flex-col gap-3 pt-4 border-t">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  onClick={toggleLike}
+                  variant={liked ? 'destructive' : 'default'}
+                  className="flex items-center gap-2"
+                >
+                  <Heart size={18} /> {liked ? 'Liked' : 'Like'} ({likeCount})
+                </Button>
+
+                <Button onClick={() => router.push(`/products/edit/${product.slug}`)}>
+                  Edit
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+
+              {product.category?.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={() =>
+                    router.push(`/products?category=${product.category.id}`)
+                  }
+                >
+                  See All in {product.category.name} <ArrowRight size={16} />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      ) : null}
-    </div>
+
+        {/* Similar Products */}
+        {similarProductsData?.data?.length ? (
+          <div className="max-w-6xl mx-auto mt-12">
+            <h2 className="text-2xl font-bold mb-6">
+              More from {product.category?.name}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {similarProductsData.data
+                .filter((p) => p.id !== product.id && !deletedProducts.includes(p.id))
+                .map((p: Product) => (
+                  <ProductCard key={p.id} product={p} onDelete={() => { }} />
+                ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </ProtectedRoute>
   );
 }

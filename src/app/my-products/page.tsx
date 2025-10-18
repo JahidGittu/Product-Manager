@@ -1,32 +1,25 @@
-// src/app/products/page.tsx
 'use client';
 
 import { useState, useEffect, useMemo, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
-import { X, Menu, Loader2 } from 'lucide-react';
+import { X, Menu } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Pagination } from '@/components/Pagination';
 import { ProductCard } from '@/components/ProductCard';
-import { LoadingSkeleton } from '@/components/LoadingSkeleton';
+import ProtectedRoute from '@/app/routes/ProtectedRoute';
 
-import {
-  useGetProductsQuery,
-  useDeleteProductMutation,
-  productsApi,
-  Product,
-} from '@/store/productsApi';
-import { useGetAllCategoriesQuery, Category } from '@/store/categoriesApi';
-import ProtectedRoute from '../routes/ProtectedRoute';
+import { LocalProduct, getLocalProducts, deleteLocalProduct } from '@/lib/localProducts';
 
 const DELETED_KEY = 'deletedProducts_v1';
 const DEFAULT_PAGE_SIZES = [10, 15, 20, 25, 30];
 
 // -------------------- Utilities --------------------
 const getDeletedIds = (): string[] => {
+  if (typeof window === 'undefined') return [];
   try {
     return JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
   } catch {
@@ -41,14 +34,73 @@ const addDeletedId = (id: string) => {
   }
 };
 
-// -------------------- Hooks --------------------
-const useProductDelete = () => {
-  const [deleteProduct] = useDeleteProductMutation();
+// -------------------- Main Component --------------------
+const MyProductsPage = () => {
+  const router = useRouter();
 
-  const handleDelete = async (product: Product) => {
+  // ---------- States ----------
+  const [products, setProducts] = useState<(LocalProduct & { category: { id: string; name: string } })[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [perPage, setPerPage] = useState<number>(12);
+  const [search, setSearch] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [sortOption, setSortOption] = useState<'default' | 'lowHigh' | 'highLow'>('default');
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+
+  // ---------- Read category query param safely ----------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setCategoryFilter(params.get('category') || '');
+    setPage(1);
+  }, []);
+
+  // ---------- Load products from localStorage ----------
+  useEffect(() => {
+    const localProducts = getLocalProducts().map((p) => ({
+      ...p,
+      category: { id: p.categoryId, name: 'Unknown' },
+    }));
+    setProducts(localProducts);
+  }, []);
+
+  const deletedIds = useMemo(() => getDeletedIds(), []);
+
+  // ---------- Filter & Sort ----------
+  const filteredProducts = useMemo(() => {
+    const filtered = products.filter((p) => {
+      if (deletedIds.includes(p.id)) return false;
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = categoryFilter ? p.category.id === categoryFilter : true;
+      const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
+      return matchesSearch && matchesCategory && matchesPrice;
+    });
+
+    if (sortOption === 'lowHigh') filtered.sort((a, b) => a.price - b.price);
+    else if (sortOption === 'highLow') filtered.sort((a, b) => b.price - a.price);
+
+    return filtered;
+  }, [products, deletedIds, search, categoryFilter, priceRange, sortOption]);
+
+  const totalPages = Math.ceil(filteredProducts.length / perPage);
+
+  const displayedProducts = useMemo(() => {
+    const start = (page - 1) * perPage;
+    return filteredProducts.slice(start, start + perPage);
+  }, [filteredProducts, page, perPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ---------- Delete Product ----------
+  const handleDelete = async (product: LocalProduct) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: 'This action will remove the product permanently!',
+      text: 'This will permanently delete your product!',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -60,146 +112,22 @@ const useProductDelete = () => {
     if (!result.isConfirmed) return;
 
     try {
-      // Delete API call
-      const response = await deleteProduct(product.id).unwrap();
-
-      // Update local deleted IDs
+      deleteLocalProduct(product.id);
       addDeletedId(product.id);
-
-      // Update RTK Query cache safely
-      productsApi.util.updateQueryData(
-        'getProducts',
-        { offset: 0, limit: 1000 },
-        (draft) => {
-          if (!draft?.data) return;
-          draft.data = draft.data.filter((p) => p.id !== product.id);
-          draft.total = draft.data.length;
-        }
-      );
-
-      toast.success('Product deleted successfully!');
-    } catch (err: unknown) {
-      console.error('Delete Error:', err);
-
-      let message = 'Failed to delete product.';
-
-      // Handle known error types safely
-      if (err instanceof Error) {
-        message = err.message;
-      } else if (
-        typeof err === 'object' &&
-        err !== null &&
-        'data' in err &&
-        typeof (err as { data?: { message?: string } }).data?.message === 'string'
-      ) {
-        message = (err as { data: { message?: string } }).data.message ?? message;
-      } else if (
-        typeof err === 'object' &&
-        err !== null &&
-        'status' in err &&
-        'error' in err
-      ) {
-        const e = err as { status?: number; error?: string };
-        message = `Error ${e.status ?? ''}: ${e.error ?? 'Unknown error'}`;
-      } else {
-        message = String(err);
-      }
-
-      Swal.fire('Error!', message, 'error');
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      toast.success('✅ Product deleted successfully!');
+    } catch (err) {
+      console.error('Delete Error:', err instanceof Error ? err.message : err);
+      toast.error('❌ Failed to delete product.');
     }
-
   };
 
-  return { handleDelete };
-};
-
-
-const useFilteredProducts = (
-  products: Product[],
-  deletedIds: string[],
-  search: string,
-  categoryFilter: string,
-  priceRange: [number, number],
-  sortOption: string
-) => {
-  return useMemo(() => {
-    const filtered = products.filter((p) => {
-      if (deletedIds.includes(p.id)) return false;
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = categoryFilter ? p.category?.id === categoryFilter : true;
-      const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
-      return matchesSearch && matchesCategory && matchesPrice;
-    });
-
-    switch (sortOption) {
-      case 'newest':
-        filtered.sort(
-          (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-        );
-        break;
-      case 'highLow':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'lowHigh':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      default:
-        filtered.sort(
-          (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-        );
-    }
-
-    return filtered;
-  }, [products, deletedIds, search, categoryFilter, priceRange, sortOption]);
-};
-
-// -------------------- Main Component --------------------
-const Products = () => {
-  const router = useRouter();
-
-  // ---------------- Client-side query params ----------------
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const category = params.get('category') || '';
-    setCategoryFilter(category);
-  }, []);
-
-  const [page, setPage] = useState<number>(1);
-  const [perPage, setPerPage] = useState<number>(12);
-  const [search, setSearch] = useState<string>('');
-  const [sortOption, setSortOption] = useState<string>('default');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-
-  const { data: productsData, isLoading, isError } = useGetProductsQuery({ offset: 0, limit: 1000 });
-  const allProducts: Product[] = productsData?.data ?? [];
-
-  const { data: categoriesData } = useGetAllCategoriesQuery();
-  const categories: Category[] = categoriesData ?? [];
-
-  const deletedIds = useMemo(() => getDeletedIds(), []);
-  const filteredProducts = useFilteredProducts(allProducts, deletedIds, search, categoryFilter, priceRange, sortOption);
-
-  const totalPages = Math.ceil(filteredProducts.length / perPage);
-  const displayedProducts = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return filteredProducts.slice(start, start + perPage);
-  }, [filteredProducts, page, perPage]);
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const { handleDelete } = useProductDelete();
-
+  // ---------- JSX ----------
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background p-4 sm:p-8">
         {/* Header */}
-        <div className="sticky top-15 py-10 z-30 bg-background p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="sticky top-16 py-10 z-30 bg-background p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <input
             type="text"
             placeholder="Search products..."
@@ -221,8 +149,10 @@ const Products = () => {
 
         <div className="lg:grid lg:grid-cols-[260px_1fr] gap-6 relative">
           {/* Sidebar */}
-          <aside className={`bg-card shadow-md p-4 z-40 transition-transform duration-300 lg:translate-x-0 lg:rounded-2xl lg:sticky lg:top-50 lg:h-fit
-          ${sidebarOpen ? 'fixed h-full top-0 left-0 w-64 translate-x-0' : 'hidden lg:block'}`}>
+          <aside
+            className={`bg-card shadow-md p-4 z-40 transition-transform duration-300 lg:translate-x-0 lg:rounded-2xl lg:sticky lg:top-16 lg:h-fit
+            ${sidebarOpen ? 'fixed h-full top-0 left-0 w-64 translate-x-0' : 'hidden lg:block'}`}
+          >
             <div className="flex justify-between items-center mb-4 lg:hidden">
               <h2 className="text-xl font-semibold">Filters</h2>
               <Button variant="ghost" onClick={() => setSidebarOpen(false)}><X /></Button>
@@ -236,7 +166,7 @@ const Products = () => {
                   type="text"
                   placeholder="Search products..."
                   value={search}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -244,25 +174,6 @@ const Products = () => {
               {/* Add Product */}
               <div>
                 <Button onClick={() => router.push('/products/create')} className="w-full">Add Product</Button>
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block mb-2 font-medium">Category</label>
-                <select
-                  value={categoryFilter}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                    setCategoryFilter(e.target.value);
-                    setPage(1);
-                    router.push(e.target.value ? `/products?category=${e.target.value}` : '/products');
-                  }}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
               </div>
 
               {/* Price Range */}
@@ -300,12 +211,10 @@ const Products = () => {
                 <label className="block mb-2 font-medium">Sort By</label>
                 <select
                   value={sortOption}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setSortOption(e.target.value)}
+                  onChange={(e) => setSortOption(e.target.value as 'default' | 'lowHigh' | 'highLow')}
                   className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="default">Default</option>
-                  <option value="top">Top Products</option>
-                  <option value="newest">New Products</option>
                   <option value="lowHigh">Price: Low to High</option>
                   <option value="highLow">Price: High to Low</option>
                 </select>
@@ -316,10 +225,10 @@ const Products = () => {
                 <label className="block mb-2 font-medium">Products Per Page</label>
                 <select
                   value={perPage}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => { setPerPage(+e.target.value); setPage(1); }}
+                  onChange={(e) => { setPerPage(+e.target.value); setPage(1); }}
                   className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  {DEFAULT_PAGE_SIZES.map(opt => (
+                  {DEFAULT_PAGE_SIZES.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
@@ -337,13 +246,9 @@ const Products = () => {
 
           {/* Product Grid */}
           <main className="flex-1 flex flex-col gap-6 w-full">
-            {isLoading ? (
-              <LoadingSkeleton />
-            ) : isError ? (
-              <p className="text-center text-red-500 mt-12">Failed to load products.</p>
-            ) : displayedProducts.length === 0 ? (
-              <div className="flex justify-center items-center h-screen">
-                <Loader2 className="animate-spin h-8 w-8 text-gray-600" />
+            {displayedProducts.length === 0 ? (
+              <div className="flex justify-center items-center h-60">
+                <p className="text-gray-500">No products found.</p>
               </div>
             ) : (
               <>
@@ -375,4 +280,4 @@ const Products = () => {
   );
 };
 
-export default Products;
+export default MyProductsPage;

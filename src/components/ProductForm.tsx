@@ -1,3 +1,4 @@
+// src/components/ProductForm.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -28,6 +29,9 @@ import {
   SelectItem,
 } from './ui/select';
 import { Loader2, ArrowLeft, DeleteIcon } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/route';
+import { saveLocalProduct, LocalProduct } from '@/lib/localProducts';
 
 interface ProductFormProps {
   productSlug?: string;
@@ -37,57 +41,96 @@ interface FormData {
   name: string;
   description: string;
   price: string;
-  categoryId: string;
   images: string[];
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
   const router = useRouter();
-  const { data: categories } = useGetAllCategoriesQuery();
 
-  const { data: productData, isFetching } = useGetProductQuery(
-    { slug: productSlug },
+  // categories + loading flag
+  const {
+    data: categories,
+    isLoading: isLoadingCategories,
+    isError: categoriesError,
+  } = useGetAllCategoriesQuery();
+
+  // product (edit) + loading flag
+  const { data: productData, isFetching: isFetchingProduct } = useGetProductQuery(
+    { slug: productSlug as string },
     { skip: !productSlug }
   );
 
   const [createProduct] = useCreateProductMutation();
   const [updateProduct] = useUpdateProductMutation();
-
   const isEditing = !!productSlug;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // form state (without category)
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
     price: '',
-    categoryId: '',
     images: [''],
   });
 
-  // Populate when editing
+  // category state separate (controlled)
+  const [categoryId, setCategoryId] = useState<string>('');
+
+  // flag to avoid overwriting user changes after initial populate
+  const [initialized, setInitialized] = useState(false);
+
+  // get current user email from Redux
+  const userEmail = useSelector((state: RootState) => state.auth.userEmail);
+
+  // Combined populate: when productData and categories are available, populate once.
   useEffect(() => {
-    if (productData) {
-      setFormData({
-        name: productData.name,
-        description: productData.description,
-        price: productData.price?.toString() || '',
-        categoryId: productData.category?.id || '',
-        images: productData.images?.length ? productData.images : [''],
-      });
+    if (!productData) return;
+
+    const initialForm: FormData = {
+      name: productData.name ?? '',
+      description: productData.description ?? '',
+      price: productData.price != null ? String(productData.price) : '',
+      images: productData.images && productData.images.length ? productData.images : [''],
+    };
+
+    setFormData(initialForm);
+
+    if (!initialized) {
+      if (categories && categories.length) {
+        const found = categories.find((c) => c.id === productData.category?.id);
+        setCategoryId(found ? found.id : productData.category?.id || '');
+        setInitialized(true);
+      } else {
+        if (productData.category?.id) setCategoryId(productData.category.id);
+      }
     }
-  }, [productData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productData, categories]);
+
+  useEffect(() => {
+    if (!initialized && productData && categories && categories.length) {
+      const found = categories.find((c) => c.id === productData.category?.id);
+      if (found) setCategoryId(found.id);
+      setInitialized(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, productData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (
-      !formData.name ||
-      !formData.description ||
-      !formData.price ||
-      !formData.categoryId
-    ) {
+    // Basic validation
+    if (!formData.name.trim() || !formData.description.trim() || !formData.price.trim() || !categoryId) {
       toast.error('⚠️ Please fill in all required fields.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const parsedPrice = parseFloat(formData.price);
+    if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error('⚠️ Please enter a valid price greater than 0.');
       setIsSubmitting(false);
       return;
     }
@@ -95,28 +138,55 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
     const payload = {
       name: formData.name.trim(),
       description: formData.description.trim(),
-      price: parseFloat(formData.price),
+      price: parsedPrice,
       images: formData.images.filter(Boolean),
-      categoryId: formData.categoryId,
+      categoryId,
+      createdBy: userEmail,
     };
 
     try {
+      let createdProduct;
       if (isEditing && productData) {
-        await updateProduct({ id: productData.id, data: payload }).unwrap();
-        toast.success('✅ Product updated successfully!');
+        createdProduct = await updateProduct({ id: productData.id, data: payload }).unwrap();
+        toast('🦄 Product updated successfully!');
       } else {
-        await createProduct(payload).unwrap();
-        toast.success('🎉 Product created successfully!');
+        createdProduct = await createProduct(payload).unwrap();
+        toast('🎉 Product created successfully!');
       }
+
+      // Save to local storage
+      const localProduct: LocalProduct = {
+        id: createdProduct.id,
+        name: createdProduct.name,
+        description: createdProduct.description,
+        images: createdProduct.images,
+        price: createdProduct.price,
+        categoryId: createdProduct.category.id,
+        createdBy: userEmail ?? 'me@gmail.com',
+        slug: createdProduct.slug,
+      };
+      saveLocalProduct(localProduct);
+
       router.push('/products');
-    } catch (err: any) {
-      toast.error(err?.data?.message || '❌ Something went wrong.');
+    } catch (err: unknown) {
+      let message = '❌ Something went wrong.';
+
+      if (err instanceof Error) {
+        message = err.message; // Standard JS Error
+      } else if (typeof err === 'object' && err !== null && 'data' in err) {
+        message = (err as { data?: { message?: string } }).data?.message ?? message;
+      }
+
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
+
   };
 
-  if (isFetching) {
+  const showLoading = isFetchingProduct || isLoadingCategories;
+
+  if (showLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
@@ -124,9 +194,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
     );
   }
 
+  if (categoriesError) {
+    return <p className="text-center text-red-500 mt-6">Failed to load categories.</p>;
+  }
+
   return (
     <div className="container max-w-2xl mx-auto py-8 animate-slide-up">
-      {/* Back Button */}
       <Button
         variant="ghost"
         className="mb-6 flex items-center"
@@ -156,9 +229,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter product name"
                 required
               />
@@ -170,9 +241,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Enter product description"
                 rows={4}
                 required
@@ -188,9 +257,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
                   type="number"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   placeholder="0.00"
                   required
                 />
@@ -199,21 +266,27 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
               <div className="space-y-2">
                 <Label htmlFor="categoryId">Category *</Label>
                 <Select
-                  value={formData.categoryId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, categoryId: value })
-                  }
-                  required
+                  key={`cat-select-${categories?.length ?? 0}-${categoryId}`}
+                  value={categoryId}
+                  onValueChange={(val) => {
+                    setCategoryId(val);
+                    setInitialized(true);
+                  }}
                 >
                   <SelectTrigger id="categoryId">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
+
                   <SelectContent>
-                    {categories?.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
+                    {categories && categories.length ? (
+                      categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" />
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -222,7 +295,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
             {/* Images */}
             <div className="space-y-2">
               <Label>Images</Label>
-
               {formData.images.map((img, idx) => (
                 <div key={idx} className="flex items-center gap-2 mb-2">
                   <Input
@@ -242,10 +314,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
                     onClick={() => {
                       const newImages = [...formData.images];
                       if (formData.images.length > 1) {
-                        // একাধিক ইনপুট থাকলে পুরো রিমুভ
                         newImages.splice(idx, 1);
                       } else {
-                        // মাত্র ১টা থাকলে শুধু ভ্যালু ক্লিয়ার
                         newImages[idx] = '';
                       }
                       setFormData({ ...formData, images: newImages });
@@ -259,32 +329,28 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() =>
-                  setFormData({ ...formData, images: [...formData.images, ''] })
-                }
+                onClick={() => setFormData({ ...formData, images: [...formData.images, ''] })}
               >
                 + Add Image
               </Button>
 
-              {/* Preview */}
-              {formData.images.some((img) => img) && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {formData.images.map(
-                    (img, idx) =>
-                      img && (
-                        <img
-                          key={idx}
-                          src={img}
-                          alt={`Preview ${idx + 1}`}
-                          className="h-24 w-auto rounded-md border object-cover"
-                          onError={(e) =>
-                            (e.currentTarget.style.display = 'none')
-                          }
-                        />
-                      )
-                  )}
-                </div>
-              )}
+              {/* Live Preview */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {formData.images.map((img, idx) => {
+                  if (!img) return null;
+                  return (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`Preview ${idx + 1}`}
+                      className="h-24 w-auto rounded-md border object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
             {/* Submit Buttons */}
@@ -305,12 +371,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productSlug }) => {
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => router.push('/products')}
-              >
+              <Button type="button" variant="outline" size="lg" onClick={() => router.push('/products')}>
                 Cancel
               </Button>
             </div>
